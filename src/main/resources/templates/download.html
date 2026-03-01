@@ -1,0 +1,7 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head><title>Descargar</title></head>
+<body>
+    <a th:href="@{|/estudiante/downloadFile?filePath=${filePath}&fileName=${fileName}|}" th:text="'Descargar ' + ${fileName}" download></a>
+</body>
+</html>

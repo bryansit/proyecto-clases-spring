@@ -1,0 +1,15 @@
+package EVALUAGO.CLASES.Service;
+
+import EVALUAGO.CLASES.Entidad.Usuario;
+import EVALUAGO.CLASES.Repositorio.UsuarioRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import java.util.Optional;
+
+@Service
+public class UsuarioService {
+    @Autowired private UsuarioRepository usuarioRepository;
+    public Optional<Usuario> findByEmail(String email) { return usuarioRepository.findByEmail(email); }
+    public Usuario registrarUsuario(Usuario usuario) { return usuarioRepository.save(usuario); }
+    public Optional<Usuario> findById(Long id) { return usuarioRepository.findById(id); }
+}

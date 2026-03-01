@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Mis Tareas - EVALUAGO</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <style>
+        body { background-color: #f4f7fa; font-family: 'Arial', sans-serif; }
+        .header { background-color: #003087; color: white; padding: 20px 0; text-align: center; border-bottom: 5px solid #ffcd00; }
+        .main-content { max-width: 1000px; margin: 30px auto; padding: 30px; background: white; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .task-card { border-left: 5px solid #28a745; background: #f8fff8; }
+        .file-input { display: none; }
+        .file-label { cursor: pointer; }
+        .btn-download { background-color: #007bff; }
+        .btn-upload { background-color: #28a745; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>Mis Tareas</h1>
+    <p>Entrega tus trabajos y recibe retroalimentación</p>
+</div>
+
+<div class="container main-content">
+
+    <!-- Mensaje de éxito -->
+    <div th:if="${mensaje}" class="alert alert-success alert-dismissible fade show">
+        <i class="bi bi-check-circle-fill"></i> <span th:text="${mensaje}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <!-- Tarea Asignada -->
+    <div class="card task-card mb-4">
+        <div class="card-body">
+            <h4 class="card-title text-success">
+                <i class="bi bi-file-earmark-excel"></i> Informe Final - Matemáticas
+            </h4>
+            <p class="card-text">
+                Descarga el archivo modelo en Excel, complétalo y súbelo antes del <strong>30 de octubre</strong>.
+            </p>
+            <div class="d-flex gap-2 flex-wrap">
+                <a href="/files/modelo_informe.xlsx" download class="btn btn-primary btn-download">
+                    <i class="bi bi-download"></i> Descargar Modelo (Excel)
+                </a>
+                <label for="fileUpload" class="btn btn-upload file-label">
+                    <i class="bi bi-upload"></i> Subir Mi Trabajo
+                </label>
+				<!-- En el botón de subir -->
+				<input type="file" id="fileUpload" class="file-input" accept=".pdf,.doc,.docx" onchange="subirArchivo()">
+                <a href="#" class="btn btn-warning text-white" onclick="descargarRetroalimentacion()">
+                    <i class="bi bi-download"></i> Retroalimentación
+                </a>
+            </div>
+            <small class="text-muted d-block mt-2">Formatos: PDF, DOC, DOCX</small>
+        </div>
+    </div>
+
+    <!-- Tabla de Entregas -->
+    <h4>Mis Entregas</h4>
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead class="table-success">
+                <tr>
+                    <th>Trabajo</th>
+                    <th>Estado</th>
+                    <th>Fecha</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="entrega : ${entregas}">
+                    <td th:text="${entrega.nombre}">Informe Final</td>
+                    <td>
+                        <span th:if="${entrega.estado == 'ENTREGADO'}" class="badge bg-success">Entregado</span>
+                        <span th:if="${entrega.estado == 'CALIFICADO'}" class="badge bg-primary">Calificado</span>
+                        <span th:if="${entrega.estado == 'PENDIENTE'}" class="badge bg-warning">Pendiente</span>
+                    </td>
+                    <td th:text="${#dates.format(entrega.fecha, 'dd/MM/yyyy HH:mm')}">25/10/2025 14:30</td>
+					<!-- En la tabla -->
+					<td>
+					    <a th:href="@{'/estudiante/descargar/entrega/' + ${entrega.id}}" class="btn btn-sm btn-outline-secondary">
+					        <i class="bi bi-download"></i>
+					    </a>
+					</td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(entregas)}">
+                    <td colspan="4" class="text-center text-muted">No has entregado trabajos aún.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="text-center mt-4">
+        <a th:href="@{/estudiante}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Volver al Panel
+        </a>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    function subirArchivo() {
+        const fileInput = document.getElementById('fileUpload');
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('trabajoId', '1'); // ID del trabajo
+
+        fetch('/estudiante/subir-trabajo', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert(data.mensaje || 'Trabajo subido con éxito');
+            location.reload();
+        })
+        .catch(err => {
+            alert('Error al subir el archivo');
+            console.error(err);
+        });
+    }
+
+    function descargarRetroalimentacion() {
+        window.location.href = '/estudiante/descargar/retroalimentacion/1';
+    }
+</script>
+</body>
+</html>

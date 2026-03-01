@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Crear Rúbrica - Evaluación Institucional</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <style>
+        body { background-color: #f4f7fa; font-family: 'Arial', sans-serif; }
+        .header { background-color: #003087; color: white; padding: 20px 0; text-align: center; border-bottom: 5px solid #ffcd00; }
+        .main-content { padding: 30px; }
+        .btn-primary { background-color: #003087; border-color: #003087; }
+        .btn-primary:hover { background-color: #002566; border-color: #002566; }
+    </style>
+</head>
+<body>
+    
+    <div class="header">
+        <h1><i class="bi bi-file-earmark-ruled"></i> Crear Rúbrica</h1>
+        <p><i class="bi bi-pencil-square"></i> Diseña una rúbrica personalizada</p>
+    </div>
+
+    <div class="container main-content">
+        <nav aria-label="breadcrumb" class="mb-4">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a th:href="@{/docente}">Panel Docente</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Crear Rúbrica</li>
+            </ol>
+        </nav>
+
+        <div th:if="${error}" class="alert alert-danger" role="alert">
+            <i class="bi bi-x-octagon-fill"></i> <span th:text="${error}">Error al crear la rúbrica.</span>
+        </div>
+        <div th:if="${success}" class="alert alert-success" role="alert">
+            <i class="bi bi-check-circle-fill"></i> <span th:text="${success}">Rúbrica creada exitosamente.</span>
+        </div>
+
+        <form th:action="@{/docente/rubricas/guardar}" method="post" class="needs-validation" novalidate>
+            <div class="mb-3">
+                <label for="nombreRubrica" class="form-label">Nombre de la Rúbrica</label>
+                <input type="text" class="form-control" id="nombreRubrica" name="nombreRubrica" required>
+                <div class="invalid-feedback">Por favor, ingresa un nombre para la rúbrica.</div>
+            </div>
+
+            <div class="mb-3">
+                <label for="tipoEvaluacion" class="form-label">Tipo de Evaluación</label>
+                <select class="form-select" id="tipoEvaluacion" name="tipoEvaluacion" required>
+                    <option value="" disabled selected>Selecciona un tipo</option>
+                    <option value="AUTOEVALUACION">Autoevaluación</option>
+                    <option value="COEVALUACION">Coevaluación</option>
+                    <option value="GRUPAL">Evaluación Grupal</option>
+                    <option value="INDIVIDUAL">Evaluación Individual</option>
+                </select>
+                <div class="invalid-feedback">Por favor, selecciona un tipo de evaluación.</div>
+            </div>
+
+            <div class="mb-3">
+                <label for="criterios" class="form-label">Criterios (uno por línea)</label>
+                <textarea class="form-control" id="criterios" name="criterios" rows="5" placeholder="Ej: Claridad en la exposición
+Participación activa
+Calidad del contenido" required></textarea>
+                <div class="invalid-feedback">Por favor, ingresa al menos un criterio.</div>
+            </div>
+
+            <div class="mb-3">
+                <label for="puntajeMaximo" class="form-label">Puntaje Máximo Total</label>
+                <input type="number" class="form-control" id="puntajeMaximo" name="puntajeMaximo" min="1" max="100" required>
+                <div class="invalid-feedback">Ingresa un puntaje entre 1 y 100.</div>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100">Guardar Rúbrica</button>
+        </form>
+
+        <div class="text-center mt-3">
+            <a th:href="@{/docente}" class="btn btn-secondary">Volver al Panel</a>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdlZxGxv11gykA==" crossorigin="anonymous"></script>
+    <script>
+        (function () {
+            'use strict';
+            var forms = document.querySelectorAll('.needs-validation');
+            Array.prototype.slice.call(forms).forEach(function (form) {
+                form.addEventListener('submit', function (event) {
+                    if (!form.checkValidity()) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    }
+                    form.classList.add('was-validated');
+                }, false);
+            });
+        })();
+    </script>
+</body>
+</html>

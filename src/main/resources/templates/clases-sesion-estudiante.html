@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title th:text="'Sesión en vivo: ' + ${clase.nombre}">Sesión de Clase</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <style>
+        body { background-color: #f4f7fa; margin: 0; padding: 0; overflow: hidden; }
+        .main-container { display: flex; height: 100vh; }
+        .sidebar { width: 280px; background-color: #e9ecef; border-right: 1px solid #dee2e6; display: flex; flex-direction: column; }
+        .main-content { flex-grow: 1; background-color: white; display: flex; flex-direction: column; }
+        .header-bar { background-color: #007BFF; color: white; padding: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .video-area { flex-grow: 1; display: flex; align-items: center; justify-content: center; background-color: #212529; color: white; font-size: 1.5rem; }
+        .chat-window { flex-grow: 1; overflow-y: auto; padding: 15px; }
+        .user-list { padding: 10px; overflow-y: auto; }
+        .user-item { padding: 5px 10px; margin-bottom: 2px; border-radius: 4px; display: flex; align-items: center; }
+        .user-avatar { width: 28px; height: 28px; border-radius: 50%; background-color: #007bff; color: white; text-align: center; line-height: 28px; font-weight: bold; margin-right: 8px; }
+        .chat-input { padding: 10px; background: #e9ecef; border-top: 1px solid #ccc; }
+        .notification { margin: 15px 0; }
+    </style>
+</head>
+<body>
+<div class="main-container">
+    <div class="sidebar">
+        <ul class="nav nav-tabs" id="sidebarTabs" role="tablist">
+            <li class="nav-item" role="presentation"><button class="nav-link active" id="chat-tab" data-bs-toggle="tab" data-bs-target="#chat" type="button" role="tab" aria-controls="chat" aria-selected="true"><i class="bi bi-chat"></i> Chat</button></li>
+			<button class="nav-link" id="users-tab-btn" data-bs-toggle="tab" data-bs-target="#users" type="button" role="tab" aria-controls="users" aria-selected="false">
+			    <i class="bi bi-people"></i> Usuarios
+			</button>
+        </ul>
+        <div class="tab-content flex-grow-1" id="sidebarContent">
+            <div class="tab-pane fade show active chat-window" id="chat" role="tabpanel" aria-labelledby="chat-tab">
+                <p class="text-muted text-center"><small>Chat Público de la Clase</small></p>
+                <div id="mensajes-chat"></div>
+            </div>
+            <div class="tab-pane fade user-list" id="users" role="tabpanel" aria-labelledby="users-tab">
+                <!-- Lista usuarios JS -->
+            </div>
+        </div>
+        <div class="chat-input">
+			<form id="form-chat" autocomplete="off" onsubmit="return enviarMensaje(event)">
+			    <div class="input-group">
+			        <input type="text" class="form-control form-control-sm" id="chatInput" name="mensaje" placeholder="Escribe un mensaje..." required>
+			        <button class="btn btn-primary btn-sm" type="submit"><i class="bi bi-send"></i></button>
+			    </div>
+			</form>
+        </div>
+    </div>
+    <div class="main-content">
+        <div class="header-bar">
+            <div><strong>Sesión en vivo:</strong> <span th:text="${clase.nombre}"></span></div>
+            <div>
+                <span class="me-3"><i class="bi bi-key"></i> <span th:text="${clase.codigoInscripcion}"></span></span>
+                <span class="badge bg-success"><i class="bi bi-circle-fill"></i> EN VIVO</span>
+            </div>
+        </div>
+        <div class="video-area text-center">
+            <div>
+                <h2>Bienvenido a la clase</h2>
+                <p>Puedes ver la presentación del docente o interactuar en el chat.</p>
+                <div class="row row-cols-3 row-cols-md-4 g-3 mt-4 justify-content-center">
+                    <div class="col">
+                        <button class="btn btn-outline-light w-100" disabled><i class="bi bi-chat-text"></i> CHAT</button>
+                    </div>
+                    <div class="col">
+                        <button class="btn btn-outline-light w-100" disabled id="btnWebcam"><i class="bi bi-camera-video"></i> WEBCAM</button>
+                    </div>
+                    <div class="col">
+                        <button class="btn btn-outline-light w-100" disabled id="btnAudio"><i class="bi bi-mic"></i> AUDIO</button>
+                    </div>
+                    <div class="col">
+                        <button class="btn btn-outline-light w-100" disabled id="btnScreen"><i class="bi bi-display"></i> Compartir Pantalla</button>
+                    </div>
+                </div>
+                <div id="permisoMensaje" class="mt-3 text-warning">
+                    El docente te otorgará permisos para activar estas funciones.
+                </div>
+            </div>
+        </div>
+        <div class="d-flex justify-content-center p-3 bg-light border-top">
+            <a th:href="@{/estudiante}" class="btn btn-danger"><i class="bi bi-box-arrow-left"></i> Salir de la Clase</a>
+        </div>
+    </div>
+</div>
+<!-- Variables con soporte Thymeleaf -->
+<script th:inline="javascript">
+    var claseId = [[${clase.id}]];
+    var usuarioActual = '[[${#authentication.name}]]';
+</script>
+<script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+<script>
+var socket = new SockJS('/clase-websocket');
+var stompClient = Stomp.over(socket);
+window.ultimaListaUsuarios = []; // Guarda la última lista para refresco
+
+stompClient.connect({}, function () {
+    stompClient.send("/app/joinClase", {}, JSON.stringify({ claseId: claseId }));
+    stompClient.subscribe('/topic/clase/' + claseId, function (mensaje) {
+        var msgObj = JSON.parse(mensaje.body);
+        if (msgObj.usuarios) {
+            window.ultimaListaUsuarios = msgObj.usuarios;
+            mostrarUsuarios(msgObj.usuarios);
+        }
+        if (msgObj.contenido || msgObj.remitente) mostrarMensajeChat(msgObj);
+        if (msgObj.mensaje) mostrarNotificacion(msgObj.mensaje);
+    });
+});
+function enviarMensaje(ev) {
+    ev.preventDefault();
+    let input = document.getElementById("chatInput");
+    let texto = input.value.trim();
+    if (texto.length > 0) {
+        let mensaje = { contenido: texto, claseId: claseId };
+        stompClient.send("/app/chat.send", {}, JSON.stringify(mensaje));
+        input.value = '';
+    }
+    return false;
+}
+function mostrarMensajeChat(msg) {
+    let chatDiv = document.getElementById("mensajes-chat");
+    if (!chatDiv) return;
+    let nombre = msg.remitente || "Anónimo";
+    if (msg.rol && msg.rol.toUpperCase() === "DOCENTE") {
+        nombre += ' <span class="text-primary fw-normal">(Docente)</span>';
+    }
+    if (msg.remitente === usuarioActual) {
+        nombre += ' <span class="text-success">(Tú)</span>';
+    }
+    let div = document.createElement('div');
+    div.className = 'mb-2';
+    div.innerHTML = `<span class="fw-bold">${nombre}:</span> ${msg.contenido}<br>
+                     <small class="text-muted">${msg.timestamp ? msg.timestamp : ''}</small>`;
+    chatDiv.prepend(div);
+}
+// Función robusta para mostrar usuarios, actualizable siempre
+function mostrarUsuarios(lista) {
+    let cont = document.querySelector('.user-list') || document.getElementById('users');
+    if (!cont) return;
+    cont.innerHTML = `<h6 class="mb-3">En la Sesión (${lista.length})</h6>`;
+    lista.forEach(function(u) {
+        if (u.rol && u.rol.toUpperCase() === "DOCENTE") {
+            cont.innerHTML += `
+                <div class="user-item bg-info text-white mb-2">
+                    <div class="user-avatar bg-white text-info">D</div>
+                    <span class="fw-bold">${u.nombre}</span>
+                    <span class="badge bg-warning text-dark ms-2">Docente</span>
+                </div>`;
+        }
+    });
+    lista.forEach(function(u) {
+        if (!u.rol || u.rol.toUpperCase() !== "DOCENTE") {
+            cont.innerHTML += `
+                <div class="user-item">
+                    <div class="user-avatar">${u.nombre ? u.nombre.substring(0,2) : ""}</div>
+                    <span>${u.nombre}</span>
+                </div>`;
+        }
+    });
+}
+
+// Recarga la lista de usuarios al cambiar tab de Bootstrap, por si llegó antes de estar visible
+document.getElementById('users-tab').addEventListener('shown.bs.tab', function () {
+    if (window.ultimaListaUsuarios) {
+        mostrarUsuarios(window.ultimaListaUsuarios);
+    }
+});
+
+function mostrarNotificacion(texto) {
+    let chatDiv = document.querySelector('.chat-window');
+    let notif = document.createElement('div');
+    notif.className = "alert alert-warning p-2 mt-2";
+    notif.innerHTML = "<i class='bi bi-bell'></i> " + texto;
+    if (chatDiv) {
+        chatDiv.prepend(notif);
+        setTimeout(() => notif.remove(), 7000);
+    }
+}
+
+function leaveClase() {
+    stompClient.send("/app/leaveClase", {}, JSON.stringify({ claseId: claseId }));
+}
+
+window.addEventListener('beforeunload', function() {
+    leaveClase();
+});
+</script>
+
+</body>
+</html>

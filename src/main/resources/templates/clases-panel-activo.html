@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title th:text="'Aula Virtual: ' + ${clase.nombre}">Aula Virtual Docente</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <style>
+        body { background-color: #f4f7fa; margin: 0; padding: 0; overflow: hidden; }
+        .main-container { display: flex; height: 100vh; }
+        .sidebar { width: 300px; background-color: #e9ecef; border-right: 1px solid #dee2e6; display: flex; flex-direction: column; }
+        .main-content { flex-grow: 1; background-color: white; display: flex; flex-direction: column; }
+        .header-bar { background-color: #003087; color: white; padding: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .video-area {
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #212529;
+            color: white;
+            font-size: 1.5rem;
+            flex-direction: column;
+            height: 100%;
+            position: relative;
+            min-height: 360px;
+        }
+        #sharedVideo {
+            width: 100%;
+            max-width: 900px;
+            height: 100%;
+            object-fit: contain;
+            background: #222;
+            border-radius: 14px;
+            margin: 0 auto 16px auto;
+            box-shadow: 0 2px 20px 0 #112;
+            min-height: 220px;
+            display: block;
+        }
+        #camVideo, #camVideo.solo {
+            filter: brightness(2.0) contrast(1.2) saturate(1.15);
+        }
+        #camVideo {
+            width: 220px;
+            height: 135px;
+            min-width: 110px;
+            min-height: 68px;
+            position: absolute;
+            top: 32px;
+            right: 36px;
+            border: 3px solid #0dcaf0;
+            z-index: 30;
+            border-radius: 12px;
+            background: #000;
+            object-fit: cover;
+            box-shadow: 0 2px 12px 2px #012;
+            cursor: move;
+            display: block;
+        }
+        #camVideo.solo {
+            width: 380px;
+            height: 250px;
+            top: 36px;
+            right: 32px;
+        }
+        #videoArea button.leave-share {
+            margin-top: 12px;
+            position: absolute;
+            right: 30px;
+            top: 30px;
+            z-index: 19;
+        }
+        #floating-audio-btn {
+            z-index: 22;
+            min-width: 170px;
+        }
+        @media (max-width: 900px) {
+            #sharedVideo, #videoArea { min-height: 180px;}
+            #camVideo, #camVideo.solo { width: 110px; height: 68px;}
+        }
+        /* Estilos de usuarios */
+        .user-item { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .user-avatar { width: 30px; height: 30px; background: #ccc; color: #003087; border-radius: 50%; text-align: center; font-weight: bold; display: inline-flex; align-items: center; justify-content: center;}
+    </style>
+</head>
+<body>
+<div class="main-container">
+    <div class="sidebar">
+        <ul class="nav nav-tabs" id="sidebarTabs" role="tablist">
+            <li class="nav-item"><button class="nav-link active" id="chat-tab" data-bs-toggle="tab" data-bs-target="#chat" type="button"><i class="bi bi-chat"></i> Chat</button></li>
+            <li class="nav-item"><button class="nav-link" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button"><i class="bi bi-people"></i> Usuarios</button></li>
+        </ul>
+        <div class="tab-content flex-grow-1" id="sidebarContent">
+            <div class="tab-pane fade show active chat-window" id="chat">
+                <p class="text-muted text-center"><small>Chat Público</small></p>
+                <div id="mensajes-chat"></div>
+            </div>
+            <div class="tab-pane fade user-list" id="users"></div>
+        </div>
+        <div class="chat-input">
+            <form id="form-chat" autocomplete="off" onsubmit="return enviarMensaje(event)">
+                <div class="input-group">
+                    <input type="text" class="form-control form-control-sm" id="chatInput" placeholder="Mensaje Chat público..." required>
+                    <button class="btn btn-primary btn-sm" type="submit"><i class="bi bi-send"></i></button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="main-content">
+        <div class="header-bar">
+            <div class="fw-bold">Aula: <span th:text="${clase.nombre}">Matemáticas</span></div>
+            <div class="d-flex align-items-center">
+                <span class="me-3 fw-bold">Cód. Insc.: <span th:text="${clase.codigoInscripcion}">A1B2C3</span></span>
+                <span class="badge bg-danger me-3"><i class="bi bi-circle-fill"></i> EN VIVO</span>
+            </div>
+        </div>
+        <div class="video-area p-5 text-center" id="videoArea">
+            <div>
+                <h2 class="mt-3">Welcome to MyanaParrot Classroom</h2>
+                <p>Presiona "Compartir Pantalla" o "Cámara" para iniciar tu presentación o mostrarte.</p>
+                <div class="row row-cols-3 row-cols-md-4 g-3 mt-4 justify-content-center">
+                    <div class="col"><button class="btn btn-outline-light w-100"><i class="bi bi-chat-text"></i> CHAT</button></div>
+                    <div class="col"><button class="btn btn-outline-light w-100"><i class="bi bi-camera-video"></i> WEBCAMS</button></div>
+                    <div class="col"><button class="btn btn-outline-light w-100"><i class="bi bi-mic"></i> AUDIO</button></div>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex justify-content-around p-3 bg-light border-top">
+			<button class="btn btn-success" id="btnShareScreen">
+			    <i class="bi bi-display"></i> <span id="btnShareScreenText">Compartir Pantalla</span>
+			</button>
+            <button class="btn btn-info" id="btnAudio"><i class="bi bi-mic"></i> Activar Audio</button>
+            <button class="btn btn-warning" id="btnCam"><i class="bi bi-camera-video"></i> Activar Cámara</button>
+            <a th:href="@{/docente}" class="btn btn-danger"><i class="bi bi-x-circle"></i> Terminar Clase</a>
+            <a th:href="@{/docente/clase/{claseId}/evaluaciones/crear(claseId=${clase.id})}" class="btn btn-warning"><i class="bi bi-journal-check"></i> Crear Rúbrica</a>
+        </div>
+    </div>
+</div>
+<script th:inline="javascript">
+    var claseId = [[${clase.id}]];
+    var usuarioActual = '[[${#authentication.name}]]';
+</script>
+<script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+
+<script>
+    var socket = new SockJS('/clase-websocket');
+    var stompClient = Stomp.over(socket);
+
+    // SOLO UNA CONEXIÓN Y SUSCRIPCIÓN
+    stompClient.connect({}, function () {
+        stompClient.send("/app/joinClase", {}, JSON.stringify({ claseId: claseId }));
+        stompClient.subscribe('/topic/clase/' + claseId, function (mensaje) {
+            var msgObj = JSON.parse(mensaje.body);
+            if (msgObj.usuarios) mostrarUsuarios(msgObj.usuarios);
+            if (msgObj.contenido || msgObj.remitente) mostrarMensajeChat(msgObj);
+            if (msgObj.mensaje) mostrarNotificacion(msgObj.mensaje);
+        });
+    });
+
+    // SALIR DE CLASE
+    function leaveClase() {
+        if (stompClient && stompClient.connected) {
+            stompClient.send("/app/leaveClase", {}, JSON.stringify({ claseId: claseId }));
+        }
+    }
+
+    window.addEventListener('beforeunload', leaveClase);
+
+    // ENVÍO DE MENSAJE
+    function enviarMensaje(ev) {
+        ev.preventDefault();
+        let input = document.getElementById("chatInput");
+        let texto = input.value.trim();
+        if (texto.length > 0) {
+            let mensaje = { contenido: texto, claseId: claseId };
+            stompClient.send("/app/chat.send", {}, JSON.stringify(mensaje));
+            input.value = '';
+        }
+        return false;
+    }
+
+    // MOSTRAR MENSAJE CHAT
+    function mostrarMensajeChat(msg) {
+        let chatDiv = document.getElementById("mensajes-chat");
+        if (!chatDiv) return;
+        let nombre = msg.remitente || "Anónimo";
+        if (msg.rol && msg.rol.toUpperCase() === "DOCENTE") {
+            nombre += ' <span class="text-primary fw-normal">(Docente)</span>';
+        }
+        if (msg.remitente === usuarioActual) {
+            nombre += ' <span class="text-success">(Tú)</span>';
+        }
+        let div = document.createElement('div');
+        div.className = 'mb-2';
+        div.innerHTML = `<span class="fw-bold">${nombre}:</span> ${msg.contenido}<br>
+                         <small class="text-muted">${msg.timestamp ? msg.timestamp : ''}</small>`;
+        chatDiv.prepend(div);
+    }
+
+    // MOSTRAR USUARIOS
+    function mostrarUsuarios(lista) {
+        let cont = document.querySelector('.user-list');
+        if (!cont) return;
+        cont.innerHTML = `<h6 class="mb-3">En la Sesión (${lista.length})</h6>`;
+
+        let hasDocente = false;
+        lista.forEach(function(u) {
+            if (u.rol && u.rol.toUpperCase() === "DOCENTE") {
+                hasDocente = true;
+                cont.innerHTML += `<div class="user-item bg-info text-white mb-2">
+                    <div class="user-avatar bg-white text-info">D</div>
+                    <span class="fw-bold">${u.nombre}</span>
+                    <span class="badge bg-warning text-dark ms-2">Docente</span>
+                </div>`;
+            }
+        });
+
+        if (!hasDocente) {
+            cont.innerHTML += `
+                <div class="user-item bg-info text-white mb-2">
+                    <div class="user-avatar bg-white text-info">D</div>
+                    <span class="fw-bold">Profesor(a)</span>
+                    <span class="badge bg-warning text-dark ms-2">Docente</span>
+                </div>`;
+        }
+
+        lista.forEach(function(u) {
+            if (!u.rol || u.rol.toUpperCase() !== "DOCENTE") {
+                let nombreShow = u.nombre || u.remitente || "Alumno";
+                cont.innerHTML += `<div class="user-item">
+                    <div class="user-avatar">${nombreShow.substring(0,2).toUpperCase()}</div>
+                    <span>${nombreShow}</span>
+                </div>`;
+            }
+        });
+    }
+
+    // NOTIFICACIONES
+    function mostrarNotificacion(texto) {
+        let chatDiv = document.querySelector('.chat-window');
+        let notif = document.createElement('div');
+        notif.className = "alert alert-warning p-2 mt-2";
+        notif.innerHTML = "<i class='bi bi-bell'></i> " + texto;
+        if (chatDiv) {
+            chatDiv.prepend(notif);
+            setTimeout(() => notif.remove(), 7000);
+        }
+    }
+
+    // --------- AUDIO, CÁMARA, PANTALLA, DRAG ---------
+    let micStream = null, micPreview = null;
+    let camStream = null;
+    let screenStream = null;
+    const btnCam = document.getElementById('btnCam');
+    const btnShare = document.getElementById('btnShareScreen');
+    const btnShareText = document.getElementById('btnShareScreenText');
+
+    // AUDIO
+    document.getElementById('btnAudio').addEventListener('click', async function () {
+        if (micStream) {
+            micStream.getTracks().forEach(track => track.stop());
+            micStream = null;
+            if (micPreview && micPreview.parentNode) micPreview.parentNode.removeChild(micPreview);
+            micPreview = null;
+            setAudioButtonState(false);
+            drawAudioControlInVideo();
+            return;
+        }
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            micStream = stream;
+            micPreview = document.createElement('audio');
+            micPreview.autoplay = true;
+            micPreview.style.display = "none";
+            micPreview.srcObject = micStream;
+            document.body.appendChild(micPreview);
+            setAudioButtonState(true);
+            drawAudioControlInVideo();
+
+            micStream.getAudioTracks()[0].onended = () => {
+                toggleAudio();
+            };
+        } catch (err) {
+            alert("No se pudo acceder al micrófono: " + err.message);
+        }
+    });
+
+    function setAudioButtonState(active) {
+        let btn = document.getElementById('btnAudio');
+        if (active) {
+            btn.classList.remove('btn-info'); btn.classList.add('btn-danger');
+            btn.innerHTML = `<i class="bi bi-mic-fill"></i> Desactivar Audio`;
+        } else {
+            btn.classList.remove('btn-danger'); btn.classList.add('btn-info');
+            btn.innerHTML = `<i class="bi bi-mic"></i> Activar Audio`;
+        }
+    }
+
+    function drawAudioControlInVideo() {
+        let last = document.getElementById('floating-audio-btn');
+        if (last) last.remove();
+        if (!document.getElementById('sharedVideo') && !document.getElementById('camVideo')) return;
+
+        let btnFloat = document.createElement('button');
+        btnFloat.id = 'floating-audio-btn';
+        btnFloat.className = 'btn position-absolute ' + (micStream ? 'btn-danger' : 'btn-info');
+        btnFloat.style.right = '120px'; btnFloat.style.top = '30px';
+        btnFloat.innerHTML = `<i class="bi ${micStream ? 'bi-mic-fill' : 'bi-mic-mute'}"></i> ${micStream ? 'Desactivar' : 'Activar'} Audio`;
+        btnFloat.onclick = () => document.getElementById('btnAudio').click();
+        document.getElementById('videoArea').appendChild(btnFloat);
+    }
+
+    // COMPARTIR PANTALLA (CON PERMISO)
+    btnShare.addEventListener('click', async function () {
+        if (screenStream) {
+            screenStream.getTracks().forEach(track => track.stop());
+            screenStream = null;
+            btnShare.classList.remove("btn-danger"); btnShare.classList.add("btn-success");
+            btnShareText.innerText = "Compartir Pantalla";
+            if (camStream) showCameraOrDual();
+            else showDefaultArea();
+            return;
+        }
+
+        try {
+            const stream = await navigator.mediaDevices.getDisplayMedia({
+                video: { cursor: 'always' },
+                audio: false
+            });
+
+            screenStream = stream;
+            btnShare.classList.remove("btn-success"); btnShare.classList.add("btn-danger");
+            btnShareText.innerText = "Dejar de compartir pantalla";
+
+            if (camStream) {
+                showCameraOrDual();
+            } else {
+                document.getElementById('videoArea').innerHTML = `<video id="sharedVideo" autoplay playsinline></video>`;
+                document.getElementById('sharedVideo').srcObject = screenStream;
+                drawAudioControlInVideo();
+            }
+
+            stream.getVideoTracks()[0].onended = () => {
+                btnShare.click(); // Simula clic para detener
+            };
+        } catch (err) {
+            console.log("Usuario canceló o error:", err);
+        }
+    });
+
+    // CÁMARA (CON PERMISO)
+    btnCam.addEventListener('click', async function () {
+        if (camStream) {
+            camStream.getTracks().forEach(track => track.stop());
+            camStream = null;
+            setCameraButtonState(false);
+            drawAudioControlInVideo();
+            if (screenStream) showCameraOrDual();
+            else showDefaultArea();
+            return;
+        }
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            camStream = stream;
+            showCameraOrDual();
+            setCameraButtonState(true);
+            drawAudioControlInVideo();
+
+            camStream.getVideoTracks()[0].onended = () => {
+                btnCam.click();
+            };
+        } catch (e) {
+            alert("No se pudo acceder a la cámara: " + e.message);
+        }
+    });
+
+    function setCameraButtonState(active) {
+        let btn = document.getElementById('btnCam');
+        if (active) {
+            btn.classList.remove('btn-warning'); btn.classList.add('btn-danger');
+            btn.innerHTML = `<i class="bi bi-camera-video-off"></i> Desactivar Cámara`;
+        } else {
+            btn.classList.remove('btn-danger'); btn.classList.add('btn-warning');
+            btn.innerHTML = `<i class="bi bi-camera-video"></i> Activar Cámara`;
+        }
+    }
+
+    function showCameraOrDual() {
+        let videoArea = document.getElementById('videoArea');
+        if (screenStream) {
+            videoArea.innerHTML = `
+                <video id="sharedVideo" autoplay playsinline></video>
+                <video id="camVideo" autoplay playsinline></video>
+            `;
+            document.getElementById('sharedVideo').srcObject = screenStream;
+            let cv = document.getElementById('camVideo');
+            cv.srcObject = camStream;
+            makeDraggable(cv);
+        } else {
+            videoArea.innerHTML = `<video id="camVideo" class="solo" autoplay playsinline></video>`;
+            let cv = document.getElementById('camVideo');
+            cv.srcObject = camStream;
+            makeDraggable(cv);
+        }
+        drawAudioControlInVideo();
+    }
+
+    function makeDraggable(ele) {
+        let pos = { top: 0, left: 0, x: 0, y: 0 };
+        ele.onmousedown = dragMouseDown;
+        function dragMouseDown(e) {
+            pos = { left: ele.offsetLeft, top: ele.offsetTop, x: e.clientX, y: e.clientY };
+            document.onmousemove = mouseMoveHandler;
+            document.onmouseup = () => { document.onmousemove = null; document.onmouseup = null; };
+        }
+        function mouseMoveHandler(e) {
+            const dx = e.clientX - pos.x, dy = e.clientY - pos.y;
+            ele.style.top = `${pos.top + dy}px`;
+            ele.style.left = `${pos.left + dx}px`;
+        }
+    }
+
+    function showDefaultArea() {
+        let videoArea = document.getElementById('videoArea');
+        videoArea.innerHTML = `
+            <div class="text-center">
+                <h2 class="mt-3">Welcome to MyanaParrot Classroom</h2>
+                <p>Presiona "Compartir Pantalla" o "Cámara" para iniciar.</p>
+                <div class="row row-cols-3 g-3 mt-4 justify-content-center">
+                    <div class="col"><button class="btn btn-outline-light w-100">CHAT</button></div>
+                    <div class="col"><button class="btn btn-outline-light w-100">WEBCAMS</button></div>
+                    <div class="col"><button class="btn btn-outline-light w-100">AUDIO</button></div>
+                </div>
+            </div>`;
+        drawAudioControlInVideo();
+    }
+
+    // WEBRTC (sin cambios)
+    let peers = {};
+    let streamDocente = null;
+
+    async function startScreenShareWebRTC() {
+        streamDocente = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+    }
+
+    stompClient.subscribe('/topic/clase/' + claseId + '/signal', function (mensaje) {
+        let data = JSON.parse(mensaje.body);
+        if (data.type === 'NEW_VIEWER' && soyDocente()) {
+            let to = data.to;
+            let pc = createPeerConnection(to);
+            streamDocente.getTracks().forEach(track => pc.addTrack(track, streamDocente));
+            pc.createOffer().then(offer => {
+                pc.setLocalDescription(offer);
+                stompClient.send('/app/signal', {}, JSON.stringify({
+                    claseId: claseId, to: to, from: 'DOCENTE_ID', type: "OFFER", sdp: offer
+                }));
+            });
+        }
+        if (data.type === 'ANSWER' && soyDocente()) {
+            peers[data.from].setRemoteDescription(new RTCSessionDescription(data.sdp));
+        }
+        if (data.type === 'CANDIDATE' && soyDocente()) {
+            peers[data.from].addIceCandidate(new RTCIceCandidate(data.candidate));
+        }
+    });
+
+    function createPeerConnection(to) {
+        let pc = new RTCPeerConnection();
+        pc.onicecandidate = event => {
+            if (event.candidate) {
+                stompClient.send('/app/signal', {}, JSON.stringify({
+                    claseId: claseId, to: to, from: 'DOCENTE_ID', type: "CANDIDATE", candidate: event.candidate
+                }));
+            }
+        };
+        peers[to] = pc;
+        return pc;
+    }
+
+    function soyDocente() {
+        return typeof rolUsuario !== "undefined" && rolUsuario === "DOCENTE";
+    }
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
